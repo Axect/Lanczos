@@ -1,9 +1,23 @@
 extern crate peroxide;
 use peroxide::*;
+use std::env::args;
+use std::f64::consts::PI;
 
 const G: f64 = 5f64;
-const N: usize = 8;
+const N: usize = 7;
 
+// Lanczos g=5, n=7
+const LG5N7: [f64; 7] = [
+    1.000000000189712,
+    76.18009172948503,
+    -86.50532032927205,
+    24.01409824118972,
+    -1.2317395783752254,
+    0.0012086577526594748,
+    -0.00000539702438713199
+];
+
+#[allow(non_snake_case)]
 fn main() {
     b_gen(N).print();
     c_gen(N).print();
@@ -11,8 +25,38 @@ fn main() {
     dr_gen(N).print();
     f_gen(G,N).print();
     lanczos_coeff(G, N).print();
-    tlg1(G, N).print();
+    println!("{:?}", tlg1(G, N).data);
+    gamma_approx(2.5).print();
+    gamma_approx(4f64).print();
+    gamma_approx(-0.5).print();
 }
+
+fn ln_gamma_approx(z: f64) -> f64 {
+    let z = z - 1f64;
+    let base = z + G + 0.5;
+    let mut s = 0f64;
+    for i in 1 .. N {
+        s += LG5N7[i] / (z + i as f64);
+    }
+    s += LG5N7[0];
+    (2f64 * PI).sqrt().ln() + s.ln() - base + base.ln() * (z + 0.5)
+}
+
+fn gamma_approx(z: f64) -> f64 {
+    if z > 1f64 {
+        let z_int = z as usize;
+        if z - (z_int as f64) == 0f64 {
+            return factorial(z_int-1) as f64;
+        }
+    }
+
+    if z < 0.5 {
+        PI / ((PI * z).sin() * gamma_approx(1f64 - z))
+    } else {
+        ln_gamma_approx(z).exp()
+    }
+}
+
 
 fn tlg1(g: f64, n: usize) -> Matrix {
     lanczos_coeff(g, n-1) * g.exp() / (2f64 * std::f64::consts::PI).sqrt()
@@ -35,7 +79,7 @@ fn b_gen(n: usize) -> Matrix {
                 0f64
             }
         },
-        (n, n)
+        (n+1, n+1)
     )
 }
 
@@ -50,23 +94,23 @@ fn c_gen(n: usize) -> Matrix {
                 sgn(i-j) * 4f64.powi(j as i32) * (i as f64) * (C(i+j, 2*j) as f64) / (i+j) as f64
             }
         },
-        (n, n)
+        (n+1, n+1)
     )
 }
 
 fn dc_gen(n: usize) -> Matrix {
-    let mut m = zeros(n, n);
+    let mut m = zeros(n+1, n+1);
     m[(0,0)] = 2f64;
-    for i in 1 .. n {
+    for i in 1 .. n+1 {
         m[(i,i)] = 2f64 * double_factorial(2*i-1) as f64;
     }
     m
 }
 
 fn dr_gen(n: usize) -> Matrix {
-    let mut m = zeros(n, n);
+    let mut m = zeros(n+1, n+1);
     m[(0,0)] = 1f64;
-    for i in 1 .. n {
+    for i in 1 .. n+1 {
         m[(i,i)] = - ((i * C(2*i-1, i)) as f64);
     }
     m
@@ -77,8 +121,8 @@ fn f(g: f64, n: usize) -> f64 {
 }
 
 fn f_gen(g: f64, n: usize) -> Vec<f64> {
-    let mut v = vec![0f64; n];
-    for i in 0 .. n {
+    let mut v = vec![0f64; n+1];
+    for i in 0 .. n+1 {
         v[i] = f(g, i);
     }
     v
